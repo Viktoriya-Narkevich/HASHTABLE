@@ -1,0 +1,93 @@
+unit UHelpForm;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, UInfo;
+
+type
+  TTFormAdd = class(TForm)
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    ETitle: TEdit;
+    EDirector: TEdit;
+    MDescription: TMemo;
+    Button2: TButton;
+    EActors: TEdit;
+    Button1: TButton;
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    info: TInfo;
+    IsView: boolean;
+    procedure SetParams(AInfo:TInfo; AIsView:boolean);
+  end;
+
+var
+  TFormAdd: TTFormAdd;
+
+implementation
+
+{$R *.dfm}
+
+procedure TTFormAdd.Button1Click(Sender: TObject);
+begin
+  if IsView then
+    ModalResult:= mrOK
+  else
+    begin
+      if trim(ETitle.Text) = '' then
+        begin
+          MessageDlg('Input Film Name', mtError, [mbOk], 0);
+          ETitle.SetFocus;
+          exit
+        end;
+      if trim(EDirector.Text) = '' then
+        begin
+          MessageDlg('Input Director Name', mtError, [mbOk], 0);
+          EDirector.SetFocus;
+          exit
+        end;
+      if trim(EActors.Text) = '' then
+        begin
+          MessageDlg('Input Actors Name', mtError, [mbOk], 0);
+          EActors.SetFocus;
+          exit
+        end;
+      info:=TInfo.Create(trim(ETitle.Text),trim(EDirector.Text),trim(EActors.Text),trim(MDescription.Text));
+      ModalResult:= mrOk;
+    end;
+end;
+
+procedure TTFormAdd.SetParams(AInfo:TInfo; AIsView:boolean);
+begin
+  IsView:=AIsView;
+  if IsView then
+    begin
+      info:=AInfo;
+      ETitle.Text:=info.FName;
+      EDirector.Text:=info.Direct;
+      EActors.Text:=info.Act;
+      MDescription.Text:=info.Descript;
+    end;
+  ETitle.ReadOnly:=IsView;
+  EDirector.ReadOnly:=IsView;
+  EActors.ReadOnly:=IsView;
+  {Button2.Visible:= not IsView;
+  if IsView then
+    Button1.Left:=160
+  else
+    Button1.Left:=96; }
+end;
+
+procedure TTFormAdd.Button2Click(Sender: TObject);
+begin
+Close;
+end;
+
+end.

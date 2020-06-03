@@ -1,0 +1,205 @@
+unit UHashTable;
+
+interface
+uses UInfo, SysUtils, Grids;
+const N = 101;
+
+type TCellState = (csFree, csFull, csDel);
+     TIndex = 0..N-1;
+     TCell = record
+               info: TInfo;
+               state: TCellState;
+             end;
+     TTable = array[TIndex] of TCell;
+     THashTable = class
+                    private
+                      FTable: TTable;
+                      FCount: integer;
+                      FC, FD: integer;
+                    protected
+                      function HashF(key: TKey): TIndex;
+                      function NextCell(a0: TIndex; var i: integer):TIndex;
+                      function IndexOff(key: TKey; var a: integer):boolean;
+                    public
+                      constructor Create(AC, AD: integer);
+                      destructor Destroy; override;
+                      procedure Clear; virtual;
+                      function IsEmpty:boolean;
+                      function Add(info: TInfo):boolean;
+                      function Delete(key: TKey):boolean;
+                      function Find(key: TKey; var info: TInfo):boolean;
+                      procedure View(SG: TStringGrid);
+                      procedure SaveToFile(FileName: string);
+                      function LoadFromFile(FileName: string):boolean;
+                    property Count: integer read FCount;
+                  end;
+
+implementation
+
+constructor THashTable.Create(AC,AD:integer);
+var i: integer;
+begin
+  FCount:= 0;
+  for i:=0 to N-1 do
+    FTable[i].state:= csFree;
+  FC:=AC; FD:=AD;
+end;
+
+destructor THashTable.Destroy;
+begin
+  Clear;
+  inherited;
+end;
+
+function THashTable.HashF(key:TKey):TIndex;
+begin
+  Result:=TInfo.HF(key) mod N
+end;
+
+function THashTable.NextCell(a0:TIndex; var i:integer):TIndex;
+begin
+  inc(i);
+  result:=(a0 + FC*i + FD*i*i) mod N;
+end;
+
+function THashTable.IndexOff(key: TKey; var a:integer):boolean;
+var a0:TIndex;
+    i:integer;
+    stop:boolean;
+    d:integer;
+    info:TInfo;
+begin
+  a0:=HashF(key);
+  i:=0;
+  d:=-1;
+  result:=false;
+  stop:=false;
+  a:=a0;
+  repeat
+    case FTable[a].state of
+      csFree: stop:= True;
+      csDel: begin
+               if d = -1 then
+                d:=a;
+               a:=NextCell(a0,i);
+             end;
+      csFull: if info.IsEqualKey(key, FTable[a].info.FName) then
+                result:=true
+              else
+                a:= NextCell(a0,i);
+    end;
+  until result or stop or (i = N);
+  if not result and (d <> -1) then
+    a:=d;
+end;
+
+function THashTable.Add(info: TInfo): Boolean;
+var
+  a : integer;
+begin
+  result := (FCount < N) and not IndexOff(info.FName, a) and
+  (FTable[a].state <> csFull);
+  if Result then
+    begin
+      FTable[a].info := info;
+      FTable[a].state := csFull;
+      Inc(FCount)
+    end;
+end;
+
+function THashTable.Delete(key: TKey): Boolean;
+var
+  a : integer;
+begin
+  Result := (FCount > 0) and IndexOff(key,a);
+  if Result then
+    begin
+      FTable[a].state := csDel;
+      Dec(FCount);
+    end;
+end;
+
+function THashTable.Find(key: TKey; var info: TInfo): Boolean;
+var
+  a : Integer;
+begin
+  Result := (FCount > 0) and IndexOff(key,a);
+  if Result then
+    info := FTable[a].info;
+end;
+
+procedure THashTable.View(SG: TStringGrid);
+var
+  i,j : integer; info:TInfo;
+begin
+  with SG do
+  begin
+    if FCount = 0 then
+      begin
+        RowCount := 2;
+        Rows[1].Clear;
+      end
+    else
+    begin
+      RowCount := FCount + 1;
+      j := 0;
+      if FCount > 0 then
+        for i := 0 to N - 1 do
+          if FTable[i].state = csFull then
+            begin
+              inc (j);
+              info.ShowInfo(FTable[i].info, Rows[j]);
+            end;
+    end;
+  end;
+end;
+
+function THashTable.IsEmpty:boolean;
+begin
+  Result:=FCount = 0;
+end;
+
+function THashTable.LoadFromFile(FileName: string): Boolean;
+var
+  f : TextFile;
+  info : TInfo;
+begin
+  Result := true;
+  AssignFile(f, FileName);
+  Clear;
+  Reset(f);
+  while not Eof(f) and Result do
+    if info.LoadInfo(f, info) then
+      Result := Add(info)
+    else
+      Result := False;
+  CloseFile(f);
+  if not Result then
+    Clear;
+end;
+
+procedure THashTable.SaveToFile(FileName: string);
+var
+  f: TextFile;
+  i: Integer;
+  info: TInfo;
+begin
+  AssignFile(f, FileName);
+  Rewrite(f);
+  if FCount>0 then
+    for i:= 0 to N-1 do
+      if FTable[i].state = csFull then
+        info.SaveInfo(f, FTable[i].info);
+  CloseFile(f);
+end;
+
+procedure THashTable.Clear;
+var
+  i : integer;
+begin
+  for i:= 0 to N-1 do
+    FTable[i].state := csFree;
+  FCount := 0;
+end;
+
+end.
